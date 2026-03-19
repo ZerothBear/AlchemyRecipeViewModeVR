@@ -38,6 +38,8 @@ namespace
 				callback = &SetSelectedItemCallback;
 			} else if (methodName == "SetSelectedCategory") {
 				callback = &SetSelectedCategoryCallback;
+			} else if (methodName == "ShowItem3D") {
+				callback = &ShowItem3DCallback;
 			}
 
 			inner_->Process(a_methodName, callback);
@@ -87,6 +89,11 @@ namespace
 			ForwardOrBlock("SetSelectedCategory", a_args, false, true);
 		}
 
+		static void ShowItem3DCallback(const RE::FxDelegateArgs& a_args)
+		{
+			ForwardOrBlock("ShowItem3D", a_args, true, false);
+		}
+
 		RE::FxDelegateHandler::CallbackProcessor* inner_{ nullptr };
 	};
 
@@ -130,20 +137,29 @@ namespace ARV
 			}
 
 			const auto formID = object->GetFormID();
-			const auto* ingredientRecord = Alchemy::IngredientRegistry::GetSingleton().Find(formID);
 			const auto& session = RecipeModeSession::GetSingleton();
-
 			const bool synthetic = session.IsSyntheticEntry(a_entry->data);
+
+			const auto formType = object->GetFormType();
+			if (!synthetic && formType != RE::FormType::Ingredient) {
+				return;
+			}
+
+			const auto* ingredientRecord = Alchemy::IngredientRegistry::GetSingleton().Find(formID);
+			if (!synthetic && !ingredientRecord) {
+				return;
+			}
+
 			std::string text = ingredientRecord ? ingredientRecord->displayName : (object->GetName() ? object->GetName() : "");
 			if (synthetic) {
 				text += " (0)";
+				a_dataContainer->SetMember("count", RE::GFxValue(0));
+				a_dataContainer->SetMember("enabled", RE::GFxValue(false));
 			}
 
-			a_dataContainer->SetMember("text", RE::GFxValue(text));
-			a_dataContainer->SetMember("count", RE::GFxValue(0));
-			a_dataContainer->SetMember("enabled", RE::GFxValue(!synthetic));
 			a_dataContainer->SetMember("arvSynthetic", RE::GFxValue(synthetic));
 			a_dataContainer->SetMember("arvFormID", RE::GFxValue(static_cast<double>(formID)));
+			a_dataContainer->SetMember("text", RE::GFxValue(text));
 		}
 	}
 

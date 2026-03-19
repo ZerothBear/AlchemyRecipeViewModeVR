@@ -83,6 +83,15 @@ namespace ARV
 
 	void RecipeModeSession::BindAlchemyMenu(AlchemyMenu* a_menu)
 	{
+		if (menuOpen_ && alchemyMenu_ == a_menu && a_menu) {
+			if (Config::Settings::GetSingleton().DebugLogging()) {
+				spdlog::info(
+					"RecipeModeSession: skipping duplicate AlchemyMenu bind for {} while menu is already open",
+					static_cast<const void*>(a_menu));
+			}
+			return;
+		}
+
 		alchemyMenu_ = a_menu;
 		if (!alchemyMenu_) {
 			return;
