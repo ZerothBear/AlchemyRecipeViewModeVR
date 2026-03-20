@@ -40,7 +40,7 @@ namespace ARV
 		}
 
 		auto& session = RecipeModeSession::GetSingleton();
-		if (!session.IsMenuOpen() || !session.IsCurrentMovieAlchemy()) {
+		if (!session.IsMenuOpen()) {
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
@@ -67,8 +67,8 @@ namespace ARV
 				continue;
 			}
 
-			spdlog::info("InputWatcher: toggling recipe mode on key {}", idEvent->idCode);
-			session.Toggle();
+			spdlog::info("InputWatcher: toggling recipe mode on key {} (thread {})", idEvent->idCode, GetCurrentThreadId());
+			session.RequestToggle();
 		}
 
 		return RE::BSEventNotifyControl::kContinue;

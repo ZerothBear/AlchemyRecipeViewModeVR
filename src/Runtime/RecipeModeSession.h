@@ -1,6 +1,9 @@
 #pragma once
 
+#include <atomic>
+
 #include "Alchemy/IngredientRegistry.h"
+#include "Alchemy/MissingIngredient.h"
 #include "Alchemy/PlayerAlchemySnapshot.h"
 
 namespace ARV
@@ -9,51 +12,52 @@ namespace ARV
 	{
 	public:
 		using AlchemyMenu = RE::CraftingSubMenus::CraftingSubMenus::AlchemyMenu;
-		using MenuIngredientEntry = AlchemyMenu::MenuIngredientEntry;
 
 		static RecipeModeSession& GetSingleton();
 
 		void OnCraftingMenuOpened(RE::GFxMovieView* a_movie);
 		void OnCraftingMenuClosed();
 		void BindAlchemyMenu(AlchemyMenu* a_menu);
-		void OnSelectionChanged();
-		void OnUserEvent(const RE::BSFixedString* a_control);
 
 		void Toggle();
-		void DisableRecipeMode();
+		void RequestToggle();
 
 		[[nodiscard]] bool IsMenuOpen() const noexcept;
 		[[nodiscard]] bool IsEnabled() const noexcept;
-		[[nodiscard]] bool HasAlchemyMenu() const noexcept;
-		[[nodiscard]] bool ShouldBlockCraft() const noexcept;
-		[[nodiscard]] bool IsSyntheticEntry(const RE::InventoryEntryData* a_entryData) const noexcept;
-		[[nodiscard]] bool IsSyntheticForm(RE::FormID a_formID) const noexcept;
 		[[nodiscard]] bool IsCurrentMovieAlchemy() const noexcept;
+		[[nodiscard]] bool ShouldBlockCraft() const noexcept;
 
 	private:
+		void ExecuteQueuedToggle(std::uint64_t a_capturedGeneration);
 		void EnableRecipeMode();
-		void CaptureVanillaIngredientEntries();
-		void BuildSyntheticIngredientEntries();
-		void ApplySyntheticIngredientEntries();
-		void RestoreVanillaIngredientEntries();
-		void ClearSyntheticEntries();
-		void ApplyUiState();
-		void RefreshMenu(bool a_fullRebuild);
+		void DisableRecipeMode();
+		void BuildGhostIngredients();
+		void AddGhostItemsToInventory();
+		void AppendGhostEntriesToMenu();
+		void RemoveGhostEntriesFromMenu();
+		void RemoveGhostItemsFromInventory();
+		void RestoreOriginalNames();
+		void RefreshMenu();
 		void SyncRootState();
+		void SetCraftingBlocked(bool a_blocked);
+		void FlushDeferredCleanup();
 
+		// Main-thread-only state (never read/written from input thread)
 		RE::GFxMovieView* movie_{ nullptr };
 		AlchemyMenu*      alchemyMenu_{ nullptr };
+		bool              uiInjected_{ false };
+		bool              inventoryInjected_{ false };
+		bool              menuEntriesInjected_{ false };
 
-		bool menuOpen_{ false };
-		bool enabled_{ false };
-		bool uiInjected_{ false };
-		bool vanillaCaptured_{ false };
+		// Cross-thread atomics (read from input thread, written from main thread)
+		std::atomic<bool>          menuOpen_{ false };
+		std::atomic<bool>          enabled_{ false };
+		std::atomic<std::uint64_t> menuGeneration_{ 0 };
+		std::atomic<std::int32_t>  pendingToggleCount_{ 0 };
+		std::atomic<bool>          toggleTaskQueued_{ false };
 
-		Alchemy::PlayerAlchemySnapshot                         playerSnapshot_{};
-		std::vector<MenuIngredientEntry>                       vanillaIngredientEntries_{};
-		std::vector<std::unique_ptr<RE::InventoryEntryData>>  syntheticInventoryEntries_{};
-		std::vector<MenuIngredientEntry>                       syntheticIngredientEntries_{};
-		std::unordered_set<RE::FormID>                         syntheticFormIDs_{};
-		std::unordered_set<const RE::InventoryEntryData*>      syntheticEntryPointers_{};
+		Alchemy::PlayerAlchemySnapshot    playerSnapshot_{};
+		std::vector<GhostIngredient>      ghostIngredients_{};
+		std::vector<GhostIngredient>      deferredCleanup_{};
 	};
 }
