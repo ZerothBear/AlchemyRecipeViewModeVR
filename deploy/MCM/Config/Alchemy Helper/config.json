@@ -1,0 +1,83 @@
+{
+    "modName": "Alchemy Helper",
+    "displayName": "Alchemy Recipe View VR",
+    "minMcmVersion": 9,
+    "cursorFillMode": "topToBottom",
+    "content": [],
+    "customContent": {},
+    "pages": [
+        {
+            "pageDisplayName": "Settings",
+            "cursorFillMode": "topToBottom",
+            "content": [
+                {
+                    "text": "Controls",
+                    "type": "header"
+                },
+                {
+                    "id": "iToggleKey:Controls",
+                    "text": "Toggle Recipe View Key",
+                    "type": "keymap",
+                    "help": "The key used to toggle Recipe View mode on/off while in the alchemy menu. Default: \\ (backslash, DX scancode 43).",
+                    "valueOptions": {
+                        "sourceType": "ModSettingInt"
+                    },
+                    "ignoreConflicts": true
+                },
+                {
+                    "text": "Behavior",
+                    "type": "header"
+                },
+                {
+                    "id": "bShowNavButton:Behavior",
+                    "text": "Show Navigation Button",
+                    "type": "toggle",
+                    "help": "Show a navigation button hint when Recipe View mode is active.",
+                    "valueOptions": {
+                        "sourceType": "ModSettingBool"
+                    }
+                },
+                {
+                    "id": "bBlockCraftWhileEnabled:Behavior",
+                    "text": "Block Crafting While Active",
+                    "type": "toggle",
+                    "help": "Prevent potion crafting while Recipe View mode is active. Recommended to keep enabled.",
+                    "valueOptions": {
+                        "sourceType": "ModSettingBool"
+                    }
+                },
+                {
+                    "text": "General",
+                    "type": "header"
+                },
+                {
+                    "id": "bEnable:General",
+                    "text": "Enable Mod",
+                    "type": "toggle",
+                    "help": "Master toggle for Alchemy Recipe View VR.",
+                    "valueOptions": {
+                        "sourceType": "ModSettingBool"
+                    }
+                },
+                {
+                    "id": "bDebugLogging:General",
+                    "text": "Enable Debug Logging",
+                    "type": "toggle",
+                    "help": "Enables verbose debug logging to AlchemyRecipeViewVR.log.",
+                    "valueOptions": {
+                        "sourceType": "ModSettingBool"
+                    }
+                },
+                {
+                    "id": "bResetSettings:General",
+                    "text": "Reset Settings To Defaults",
+                    "type": "toggle",
+                    "help": "Restores all MCM settings to defaults, then automatically turns this toggle back off.",
+                    "valueOptions": {
+                        "sourceType": "ModSettingBool"
+                    }
+                }
+            ]
+        }
+    ]
+}

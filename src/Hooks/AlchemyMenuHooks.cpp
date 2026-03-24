@@ -1,6 +1,5 @@
 #include "Hooks/AlchemyMenuHooks.h"
 
-#include "Config/Settings.h"
 #include "PCH/PCH.h"
 #include "Runtime/RecipeModeSession.h"
 
@@ -20,10 +19,9 @@ namespace
 			auto* hooks = std::addressof(ARV::AlchemyMenuHooks::GetSingleton());
 			const std::string_view methodName = a_methodName.c_str() ? a_methodName.c_str() : "";
 
-			hooks->RememberCallback(methodName, a_method);
-
 			auto* callback = a_method;
 			if (methodName == "CraftButtonPress") {
+				hooks->RememberCraftButtonPress(a_method);
 				callback = &CraftButtonPressCallback;
 			}
 
@@ -39,7 +37,7 @@ namespace
 				return;
 			}
 
-			if (auto* original = ARV::AlchemyMenuHooks::GetSingleton().CallbackFor("CraftButtonPress")) {
+			if (auto* original = ARV::AlchemyMenuHooks::GetSingleton().CraftButtonPressCallback()) {
 				(*original)(a_args);
 			}
 		}
@@ -76,30 +74,33 @@ namespace ARV
 			1,
 			+[](AlchemyMenu* a_menu, RE::FxDelegateHandler::CallbackProcessor* a_processor)
 			{
+				AlchemyMenuHooks::GetSingleton().PrepareForAccept();
 				CraftBlockingProcessor interceptor(a_processor);
 				_Accept(a_menu, std::addressof(interceptor));
 				AlchemyMenuHooks::GetSingleton().OnAccept(a_menu);
 			});
 
-		// Hook ProcessUserEvent (vfunc slot 5) for native craft blocking
 		_ProcessUserEvent = vtable.write_vfunc(
 			5,
 			+[](AlchemyMenu* a_menu, RE::BSFixedString* a_control) -> bool
 			{
 				auto& session = RecipeModeSession::GetSingleton();
 				if (session.ShouldBlockCraft() && a_control) {
-					// Phase 4A: Discovery -- log all controls seen during recipe mode
-					spdlog::debug(
-						"AlchemyMenuHooks::ProcessUserEvent: control='{}' (recipe mode active)",
-						a_control->c_str());
+					spdlog::info(
+						"AlchemyMenuHooks::ProcessUserEvent: control='{}' selectedIndexes={} currentIngredientIdx={} (recipe mode active)",
+						a_control->c_str(),
+						a_menu ? a_menu->selectedIndexes.size() : 0,
+						a_menu ? a_menu->currentIngredientIdx : 0);
 
-					// Phase 4B: Block craft-trigger controls
-					// "Activate" is the primary craft action in both keyboard and VR controller paths.
-					// Additional controls can be added here after discovery testing.
 					const std::string_view control = a_control->c_str();
-					if (control == "Activate") {
+					if (control == "Activate" || control == "XButton") {
 						spdlog::info("AlchemyMenuHooks: blocked craft control '{}'", control);
-						return true;  // handled -- do not forward
+						return true;
+					}
+					if (control == "Cancel") {
+						RE::DebugNotification("Deactivate Recipe View mode first");
+						spdlog::info("AlchemyMenuHooks: blocked menu close (recipe mode active)");
+						return true;
 					}
 				}
 				return _ProcessUserEvent(a_menu, a_control);
@@ -111,22 +112,21 @@ namespace ARV
 
 	void AlchemyMenuHooks::OnAccept(AlchemyMenu* a_menu)
 	{
-		RecipeModeSession::GetSingleton().BindAlchemyMenu(a_menu);
+		RecipeModeSession::GetSingleton().PublishAlchemyMenuBound(a_menu);
 	}
 
-	void AlchemyMenuHooks::RememberCallback(std::string_view a_name, RE::FxDelegateHandler::CallbackFn* a_callback)
+	void AlchemyMenuHooks::PrepareForAccept() noexcept
 	{
-		callbacks_[std::string(a_name)] = a_callback;
+		craftButtonPressCallback_.store(nullptr, std::memory_order_release);
 	}
 
-	RE::FxDelegateHandler::CallbackFn* AlchemyMenuHooks::CallbackFor(std::string_view a_name) const noexcept
+	void AlchemyMenuHooks::RememberCraftButtonPress(RE::FxDelegateHandler::CallbackFn* a_callback) noexcept
 	{
-		const auto it = callbacks_.find(std::string(a_name));
-		return it != callbacks_.end() ? it->second : nullptr;
+		craftButtonPressCallback_.store(a_callback, std::memory_order_release);
 	}
 
-	void AlchemyMenuHooks::ClearCallbacks()
+	RE::FxDelegateHandler::CallbackFn* AlchemyMenuHooks::CraftButtonPressCallback() const noexcept
 	{
-		callbacks_.clear();
+		return craftButtonPressCallback_.load(std::memory_order_acquire);
 	}
 }

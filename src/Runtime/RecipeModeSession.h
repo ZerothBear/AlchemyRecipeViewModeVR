@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <unordered_map>
 
 #include "Alchemy/IngredientRegistry.h"
 #include "Alchemy/MissingIngredient.h"
@@ -15,12 +16,12 @@ namespace ARV
 
 		static RecipeModeSession& GetSingleton();
 
-		void OnCraftingMenuOpened(RE::GFxMovieView* a_movie);
-		void OnCraftingMenuClosed();
-		void BindAlchemyMenu(AlchemyMenu* a_menu);
-
-		void Toggle();
+		void PublishCraftingMenuOpened(RE::GFxMovieView* a_movie);
+		void PublishCraftingMenuClosed();
+		void PublishAlchemyMenuBound(AlchemyMenu* a_menu);
 		void RequestToggle();
+		void RequestGhostSelection(std::uint32_t a_formID);
+		void TickOwnerThread();
 
 		[[nodiscard]] bool IsMenuOpen() const noexcept;
 		[[nodiscard]] bool IsEnabled() const noexcept;
@@ -28,36 +29,55 @@ namespace ARV
 		[[nodiscard]] bool ShouldBlockCraft() const noexcept;
 
 	private:
-		void ExecuteQueuedToggle(std::uint64_t a_capturedGeneration);
+		bool ConsumePublishedState();
+		void ProcessPendingGhostSelection();
+		void ProcessPendingToggle();
+		void ProcessDeferredCleanup();
+		void HandlePublishedOpen(RE::GFxMovieView* a_movie);
+		void HandlePublishedClose();
+		void HandlePublishedBind(AlchemyMenu* a_menu);
+		void Toggle();
 		void EnableRecipeMode();
 		void DisableRecipeMode();
 		void BuildGhostIngredients();
+		void BuildGhostRecipeCandidates();
+		void BuildEffectPartitionMap();
+		void ComputeGhostPartitionFlags();
+		void PopulateGhostMenuEntries();
+		void RemoveGhostMenuEntries();
+		void ApplyGhostDisplayNames();
 		void AddGhostItemsToInventory();
-		void AppendGhostEntriesToMenu();
-		void RemoveGhostEntriesFromMenu();
-		void RemoveGhostItemsFromInventory();
-		void RestoreOriginalNames();
+		void RemoveGhostItemsFromInventory(std::vector<GhostIngredient>& a_ghosts);
+		void RestoreOriginalNames(std::vector<GhostIngredient>& a_ghosts);
 		void RefreshMenu();
 		void SyncRootState();
 		void SetCraftingBlocked(bool a_blocked);
-		void FlushDeferredCleanup();
+		void ClearSelectionState();
 
-		// Main-thread-only state (never read/written from input thread)
+		// Owner-thread-only state. Only TickOwnerThread and its helpers may mutate these.
 		RE::GFxMovieView* movie_{ nullptr };
 		AlchemyMenu*      alchemyMenu_{ nullptr };
 		bool              uiInjected_{ false };
 		bool              inventoryInjected_{ false };
-		bool              menuEntriesInjected_{ false };
+		bool              deferredCleanupPending_{ false };
+		std::uint32_t     selectedGhostFormID_{ 0 };
 
-		// Cross-thread atomics (read from input thread, written from main thread)
+		// Cross-thread mailbox state. Producer hooks publish into these fields.
 		std::atomic<bool>          menuOpen_{ false };
 		std::atomic<bool>          enabled_{ false };
 		std::atomic<std::uint64_t> menuGeneration_{ 0 };
 		std::atomic<std::int32_t>  pendingToggleCount_{ 0 };
-		std::atomic<bool>          toggleTaskQueued_{ false };
+		std::atomic<bool>          pendingGhostSelectionRequested_{ false };
+		std::atomic<std::uint32_t> pendingGhostSelectionFormID_{ 0 };
+		std::atomic<bool>          publishedOpenRequested_{ false };
+		std::atomic<bool>          publishedCloseRequested_{ false };
+		std::atomic<bool>          publishedBindRequested_{ false };
+		std::atomic<RE::GFxMovieView*> publishedMovie_{ nullptr };
+		std::atomic<AlchemyMenu*>      publishedAlchemyMenu_{ nullptr };
 
 		Alchemy::PlayerAlchemySnapshot    playerSnapshot_{};
 		std::vector<GhostIngredient>      ghostIngredients_{};
 		std::vector<GhostIngredient>      deferredCleanup_{};
+		std::unordered_map<RE::FormID, std::uint8_t> effectPartitionMap_{};
 	};
 }

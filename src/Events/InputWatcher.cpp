@@ -1,6 +1,7 @@
 #include "Events/InputWatcher.h"
 
 #include "Config/Settings.h"
+#include "Hooks/MainThreadPump.h"
 #include "PCH/PCH.h"
 #include "Runtime/RecipeModeSession.h"
 
@@ -68,6 +69,7 @@ namespace ARV
 			}
 
 			spdlog::info("InputWatcher: toggling recipe mode on key {} (thread {})", idEvent->idCode, GetCurrentThreadId());
+			MainThreadPump::VerifyInstalled("toggle-key");
 			session.RequestToggle();
 		}
 

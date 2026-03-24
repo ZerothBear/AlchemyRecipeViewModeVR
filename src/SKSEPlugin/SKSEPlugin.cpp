@@ -3,6 +3,7 @@
 #include "Events/InputWatcher.h"
 #include "Events/MenuLifecycleWatcher.h"
 #include "Hooks/AlchemyMenuHooks.h"
+#include "Papyrus/PapyrusBridge.h"
 #include "PCH/PCH.h"
 
 namespace
@@ -37,6 +38,9 @@ extern "C" __declspec(dllexport) bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadIn
 	try {
 		SKSE::Init(a_skse);
 		SKSE::AllocTrampoline(64);
+
+		auto* papyrus = SKSE::GetPapyrusInterface();
+		papyrus->Register(ARV::Papyrus::Register);
 
 		auto* messaging = SKSE::GetMessagingInterface();
 		messaging->RegisterListener(

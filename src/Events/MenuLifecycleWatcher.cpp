@@ -1,5 +1,6 @@
 #include "Events/MenuLifecycleWatcher.h"
 
+#include "Hooks/MainThreadPump.h"
 #include "PCH/PCH.h"
 #include "Runtime/RecipeModeSession.h"
 #include "UI/AlchemyUiInjector.h"
@@ -40,7 +41,8 @@ namespace ARV
 		}
 
 		if (!a_event->opening) {
-			RecipeModeSession::GetSingleton().OnCraftingMenuClosed();
+			MainThreadPump::VerifyInstalled("alchemy-close");
+			RecipeModeSession::GetSingleton().PublishCraftingMenuClosed();
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
@@ -60,7 +62,8 @@ namespace ARV
 			return RE::BSEventNotifyControl::kContinue;
 		}
 
-		RecipeModeSession::GetSingleton().OnCraftingMenuOpened(craftingMenu->uiMovie.get());
+		MainThreadPump::Install("alchemy-open");
+		RecipeModeSession::GetSingleton().PublishCraftingMenuOpened(craftingMenu->uiMovie.get());
 		return RE::BSEventNotifyControl::kContinue;
 	}
 }
